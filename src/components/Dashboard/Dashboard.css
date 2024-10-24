@@ -1,0 +1,368 @@
+.dashboard1 {}
+
+.dashboard1 p {
+  font-family: "Josefin Sans", sans-serif;
+}
+
+.dashboard2 {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+.dashboard3 {
+  width: 60%;
+  height: 283px;
+  position: relative;
+}
+
+.dashboard4 {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.dashboard4 img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dashboard5 {
+  width: auto;
+  height: auto;
+  border-radius: 20px;
+  background-color: #000000;
+  padding: 5.5px 4px 5.5px 4px;
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  left: 10px;
+}
+
+.dashboard5 p {
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 16px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.dashboard6 {
+  width: 45%;
+  height: auto;
+  border: 2px solid #f02946;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 5px 15px 15px 15px;
+}
+
+.dashboard7 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard7 h6 {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 16px;
+  color: #000000;
+  margin: 0;
+}
+
+.dashboard8 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard8 label {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 16px;
+  color: #000000;
+  margin: 0;
+}
+
+.dashboard8 select {
+  width: 127px;
+  height: 40px;
+  border-radius: 4px;
+  border: none;
+  outline: none;
+  padding-left: 10px;
+  background: #ffffff;
+  box-shadow: 0px 4px 21px 0px #00000026;
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 18px;
+  color: #000000;
+  margin: 0;
+}
+
+.dashboard9 {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 153px;
+  overflow: scroll;
+}
+
+.dashboard10 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard11 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard12 {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.dashboard12 img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.dashboard13 {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dashboard13 h5 {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 22px;
+  color: #18181b;
+  margin: 0;
+}
+
+.dashboard13 p {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 22px;
+  color: #71717a;
+  margin: 0;
+}
+
+.dashboard14 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.5;
+  margin-top: 15px;
+  cursor: pointer;
+}
+
+.dashboard14 h6 {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 18px;
+  color: #151518;
+  margin: 0;
+  padding-top: 5px;
+}
+
+.dashboard15 {}
+
+.dashboard16 {
+  width: 60%;
+  height: auto;
+  border: 2px solid #f02946;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.dashboard17 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.dashboard17 h5 {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 21px;
+  color: #18181b;
+  margin: 0;
+}
+
+.dashboard17 p {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 22px;
+  color: #71717a;
+  margin: 0;
+}
+
+.dashboard18 {
+  width: auto;
+  height: auto;
+  border-radius: 5px;
+  padding: 10px;
+  border: 1px solid #f02946;
+  cursor: pointer;
+}
+
+.dashboard18 p {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 13px;
+  color: #000000;
+  margin: 0;
+}
+
+.dashboard19 {
+  width: auto;
+  height: auto;
+  border-radius: 20px;
+  padding: 10px;
+  background: #d0ffcf;
+}
+
+.dashboard19 h4 {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 16px;
+  color: #000000;
+  margin: 0;
+}
+
+.dashboard20 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50.37px;
+  height: 21px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #f02946;
+  transition: 0.4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 19px;
+  width: 21.75px;
+  left: 1px;
+  bottom: 1px;
+  top: 1px;
+  background-color: #ffffff;
+  transition: 0.4s;
+  box-shadow: 0px 4px 4px 0px #00000040;
+}
+
+input:checked+.slider {
+  background-color: #03ae00;
+}
+
+input:focus+.slider {
+  box-shadow: 0 0 1px #03ae00;
+}
+
+input:checked+.slider:before {
+  transform: translateX(25px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 20px;
+}
+
+.slider.round:before {
+  border-radius: 20px;
+}
+
+.dashboard21 {
+  display: flex;
+  justify-content: space-between;
+}
+
+.dashboard22 {
+  width: auto;
+  height: 25px;
+  border-radius: 20px;
+  padding: 8px 10px 6px 10px;
+  background: #f02946;
+}
+
+.dashboard22 p {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 16px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.dashboard23 {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 16px;
+  color: #000000;
+  margin: 0;
+}
+
+
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  height: 200px;
+  margin: auto;
+}
+
+.loading-container img {
+  width: 50%;
+  height: 50%;
+}

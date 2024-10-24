@@ -1,0 +1,17 @@
+.formContainer {
+  background: linear-gradient(
+    130.59deg,
+    rgba(255, 255, 255, 0.9) 3.42%,
+    rgba(219, 219, 219, 0.54) 103.27%
+  );
+  border: 2px solid #ffffff33;
+  box-shadow: 6px 10px 26px 0px #5b1a1a1a;
+
+  box-shadow: 22px 41px 47px 0px #5b1a1a17;
+
+  box-shadow: 50px 93px 63px 0px #5b1a1a0d;
+
+  box-shadow: 89px 165px 75px 0px #5b1a1a03;
+
+  box-shadow: 139px 258px 82px 0px #5b1a1a00;
+}

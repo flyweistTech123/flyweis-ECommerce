@@ -1,0 +1,234 @@
+.employeeprofile {
+  position: relative;
+}
+
+.employeeprofile1 {
+  position: relative;
+  width: 100%;
+  height: 211px;
+  background-image: url(../../Images/img9.jpeg);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 20px 20px 0px 0;
+  background-color: black;
+  overflow: hidden;
+}
+
+.employeeprofile1::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Black with 50% opacity */
+  z-index: 1; /* Ensure the overlay is on top of the background image */
+  border-radius: 20px 20px 0px 0;
+}
+
+.employeeprofile2 {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.employeeprofile3 {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  cursor: pointer;
+}
+
+.employeeprofile3 h6 {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 40px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.employeeprofile4 {
+  width: 92px;
+  height: auto;
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.employeeprofile4 h6 {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 24px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.employeeprofile5 {
+  position: absolute;
+  top: 11rem;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.employeeprofile6 {
+  width: 101px;
+  height: 101px;
+  border: 2px solid #f02946;
+  border-image-slice: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.employeeprofile6 img {
+  width: 95%;
+  height: 95%;
+  border-radius: 50%;
+  display: block;
+  border: none;
+}
+
+.employeeprofile7 {
+  width: 80%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.employeeprofile8 {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.employeeprofile8 label {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 16px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.employeeprofile8 select {
+  width: 196px;
+  height: 56px;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0px 4px 21px 0px #00000026;
+  border: none;
+  outline: none;
+  padding-left: 10px;
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 18px;
+  color: #000000;
+  margin: 0;
+  opacity: 0.5;
+}
+
+.employeeprofile8 input {
+  width: 350px;
+  height: 56px;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0px 4px 21px 0px #00000026;
+  border: none;
+  outline: none;
+  padding-left: 10px;
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 18px;
+  color: #000000;
+  margin: 0;
+}
+
+.employeeprofile9 {
+  position: absolute;
+  top: 3.5rem;
+  right: -0.7rem;
+  width: 29.85px;
+  height: 29.85px;
+  background: #f02946;
+  border: 2px solid #403e41;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.employeeprofile10 {
+  position: relative;
+}
+
+.employeeprofile11 {
+  margin-top: 5rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+}
+
+.employeeprofile12 {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.employeeprofile12 label {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 16px;
+  color: #000000;
+  margin: 0;
+}
+
+.employeeprofile12 input {
+  width: auto;
+  height: 56px;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0px 4px 21px 0px #00000026;
+  padding-left: 15px;
+  border: none;
+  outline: none;
+}
+
+.employeeprofile13 {
+    display: flex;
+    align-items: center;
+    justify-content: end;
+    margin-top: 20px;
+}
+
+.employeeprofile13 button {
+  width: auto;
+  height: auto;
+  padding: 13px 66px;
+  background: #f02946;
+  border-radius: 20px;
+  border: none;
+  outline: none;
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 24.2px;
+  color: #FFFFFF;
+  margin: 0;
+}
