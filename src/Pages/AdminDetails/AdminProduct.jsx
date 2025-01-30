@@ -55,6 +55,9 @@ const AdminProduct = () => {
     "Subcategory Name",
     "Stock",
     "Stock Status",
+    "Product Views",
+    "In Demand",
+    "New Arrival",
     "Created at",
     "Action",
   ];
@@ -68,6 +71,9 @@ const AdminProduct = () => {
     i?.subcategoryId?.name,
     i?.stock,
     i?.stockStatus,
+    i?.productView,
+    i?.productShowInIndemand ? "Yes" : "",
+    i?.productShowInNewArrival ? "Yes" : "",
     i?.createdAt?.slice(0, 10),
     <span className="flexCont">
       <Link to={`/product/${i?._id}`}>

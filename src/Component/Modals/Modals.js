@@ -6,82 +6,130 @@ import { ClipLoader } from "react-spinners";
 import { createApi, getApi, removeApi, updateApi } from "../../Repository/Repository";
 import { IoCloseSharp } from "react-icons/io5";
 import { MdEdit } from "react-icons/md";
+import { Store } from "react-notifications-component";
 
+
+
+
+const showNotification = ({ message, type = "success" }) => {
+  Store.addNotification({
+    title: "",
+    message,
+    type,
+    insert: "top",
+    container: "top-right",
+    animationIn: ["animate__animated", "animate__fadeIn"],
+    animationOut: ["animate__animated", "animate__fadeOut"],
+    dismiss: {
+      duration: 3000,
+      onScreen: true,
+    },
+  });
+};
 
 const CreateBanner = ({ show, handleClose, edit, id, fetchApi, data }) => {
   const [type, setType] = useState(data?.type || '');
   const [desc, setDesc] = useState(data?.desc || '');
-  const [image, setImage] = useState(data?.image || '');
-  // const [imagePreview, setImagePreview] = useState(data?.image || '');
+  const [media, setMedia] = useState(data?.image || data?.bannerVideo || '');
   const [loading, setLoading] = useState(false);
-
 
   useEffect(() => {
     if (edit && data) {
       setType(data?.type || "");
       setDesc(data?.desc || "");
-      setImage(data.image || "");
-      // setImagePreview(data.image || "");
+      setMedia(data.image || data.bannerVideo || "");
     } else {
       setType("");
       setDesc("");
-      setImage("");
-      // setImagePreview("");
+      setMedia("");
     }
   }, [edit, data]);
-
 
   const resetForm = () => {
     setType("");
     setDesc("");
-    setImage("");
-    // setImagePreview("");
+    setMedia("");
   };
-
-
-
-  const fd = new FormData();
-  fd.append("type", type);
-  fd.append("desc", desc);
-  fd.append("image", image);
 
   const additionalFunctions = [handleClose, fetchApi];
 
+
   const createHandler = (e) => {
     e.preventDefault();
+    const fd = new FormData();
+
+    fd.append("type", type);
+    fd.append("desc", desc);
+
+
+    // Determine if media is an image or video and set the appropriate API endpoint
+    const isImage = media.type && media.type.startsWith('image/');
+    const isVideo = media.type && media.type.startsWith('video/');
+    const apiUrl = isImage
+      ? "api/v1/Banner/addBanner"
+      : isVideo
+        ? "admin/addNewVideoToBanner"
+        : null;
+
+    if (!apiUrl) {
+      showNotification({ message: "Unsupported media format. Only images or videos are allowed.", type: "danger" });
+      return;
+    }
+
+    if (isImage && media.size > 1048576) {
+      showNotification({ message: "File size should be less than 1 MB.", type: "danger" });
+      handleClose();
+      return;
+    }
+
+    // Append media with appropriate key
+    fd.append(isImage ? "image" : "video", media);
+
     createApi({
-      url: "api/v1/Banner/addBanner",
+      url: apiUrl,
       payload: fd,
       setLoading,
       successMsg: "Created",
       additionalFunctions,
     });
+
     resetForm();
   };
-
 
   const updateHandler = (e) => {
     e.preventDefault();
     const fd = new FormData();
 
-    // Check if type has changed
-    if (type !== data?.type) {
-      fd.append("type", type);
+    // Append type and description only if they have changed
+    if (type !== data?.type) fd.append("type", type);
+    if (desc !== data?.desc) fd.append("desc", desc);
+
+    // Check if the media is a File and validate its type and size
+    const isImage = media instanceof File && media.type.startsWith('image/');
+    const isVideo = media instanceof File && media.type.startsWith('video/');
+
+    // Check for media size
+    if (isImage && media.size > 1048576) {
+      showNotification({ message: "File size should be less than 1 MB.", type: "danger" });
+      handleClose();
+      return;
     }
 
-    // Check if description has changed
-    if (desc !== data?.desc) {
-      fd.append("desc", desc);
+    let apiUrl;
+    if (isImage) {
+      fd.append("image", media);
+      apiUrl = `api/v1/Banner/updateBanner/${id}`;
+    } else if (isVideo) {
+      fd.append("video", media);
+      apiUrl = `admin/updateBannerVideo/${id}`;
+    } else if (media && media !== data?.image) {
+      showNotification({ message: "Unsupported media format. Only images or videos are allowed.", type: "danger" });
+      return;
     }
 
-    // Check if image has changed (image might be a file object or a URL string)
-    if (image && (image instanceof File || image !== data?.image)) {
-      fd.append("image", image);
-    }
-
-    // Call the update API only with the changed data
+    // Execute the API call with the determined URL
     updateApi({
-      url: `api/v1/Banner/updateBanner/${id}`,
+      url: apiUrl, // Use the determined URL here
       payload: fd,
       setLoading,
       successMsg: "Updated",
@@ -90,7 +138,6 @@ const CreateBanner = ({ show, handleClose, edit, id, fetchApi, data }) => {
 
     resetForm();
   };
-
 
 
   return (
@@ -103,16 +150,48 @@ const CreateBanner = ({ show, handleClose, edit, id, fetchApi, data }) => {
       <Modal.Body>
         <Form onSubmit={edit ? updateHandler : createHandler}>
           <Form.Group className="mb-3">
-            <Form.Label>Image</Form.Label>
+            <Form.Label>Media</Form.Label>
             <Form.Control
               type="file"
-              onChange={(e) => setImage(e.target.files[0])}
+              accept="image/*,video/*"
+              onChange={(e) => setMedia(e.target.files[0])}
             />
-            <img
-              src={image instanceof File ? URL.createObjectURL(image) : image}
-              alt="Selected"
-              style={{ width: "100%", height: '300px', marginTop: "10px" }}
-            />
+            {media && (
+              // Check if media is a File or a URL
+              (media instanceof File || typeof media === "string") && (
+                // For File instance, we check its type
+                media instanceof File ? (
+                  media.type.startsWith("image/") ? (
+                    <img
+                      src={URL.createObjectURL(media)}
+                      alt="Selected"
+                      style={{ width: "100%", height: "300px", marginTop: "10px" }}
+                    />
+                  ) : media.type.startsWith("video/") ? (
+                    <video
+                      src={URL.createObjectURL(media)}
+                      controls
+                      style={{ width: "100%", height: "300px", marginTop: "10px" }}
+                    />
+                  ) : null
+                ) : (
+                  media.endsWith('.mp4') ? (
+                    <video
+                      src={media}
+                      controls
+                      style={{ width: "100%", height: "300px", marginTop: "10px" }}
+                    />
+                  ) :
+                    <img
+                      src={media}
+                      alt="Selected"
+                      style={{ width: "100%", height: "300px", marginTop: "10px" }}
+                    />
+                )
+              )
+            )}
+
+
           </Form.Group>
           <Form.Group className="mb-3">
             <Form.Label>Type</Form.Label>
@@ -124,6 +203,7 @@ const CreateBanner = ({ show, handleClose, edit, id, fetchApi, data }) => {
               <option value="Top">Top</option>
               <option value="Bottom">Bottom</option>
               <option value="LOGIN">Login</option>
+              <option value="BACKGROUNDIMAGE">Background Image</option>
             </Form.Select>
           </Form.Group>
           <Form.Group className="mb-3">
@@ -143,6 +223,8 @@ const CreateBanner = ({ show, handleClose, edit, id, fetchApi, data }) => {
     </Modal>
   );
 };
+
+
 const CreateType = ({ show, handleClose, edit, id, fetchApi, data }) => {
   const [type, setType] = useState(data?.gender || '');
   const [desc, setDesc] = useState(data?.desc || '');
@@ -239,56 +321,40 @@ const CreateType = ({ show, handleClose, edit, id, fetchApi, data }) => {
     </Modal>
   );
 };
-
-const CreateCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
-
-  const [name, setName] = useState(data?.name || '');
-  const [type, setType] = useState(data?.gender || '');
-  const [image, setImage] = useState(data?.image || '');
-  // const [imagePreview, setImagePreview] = useState(data?.image || '');
+const CreateSubType = ({ show, handleClose, edit, id, fetchApi, data }) => {
+  const [type, setType] = useState(data?.type || '');
+  const [desc, setDesc] = useState(data?.desc || '');
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState(null);
 
 
-  // Add useEffect to update state when `data` prop changes
   useEffect(() => {
     if (edit && data) {
-      setName(data.name || "");
-      setType(data.gender || "");
-      setImage(data.image || "");
-      // setImagePreview(data.image || "");
+      setType(data?.type || "");
+      setDesc(data?.desc || "");
     } else {
-      setName("");
       setType("");
-      setImage("");
-      // setImagePreview("");
+      setDesc("");
     }
-  }, [edit, data]); // This effect runs whenever the `data` prop changes
-
+  }, [edit, data]);
 
 
   const resetForm = () => {
-    setName("");
     setType("");
-    setImage("");
-    // setImagePreview("");
+    setDesc("");
   };
 
 
 
-
-
-  const fd = new FormData();
-  fd.append("name", name);
-  fd.append("gender", type);
-  fd.append("image", image);
-
+  const fd = {
+    type: type,
+    desc: desc
+  }
   const additionalFunctions = [handleClose, fetchApi];
 
   const createHandler = (e) => {
     e.preventDefault();
     createApi({
-      url: "api/v1/Category/addCategory",
+      url: "createSubCategoryType",
       payload: fd,
       setLoading,
       successMsg: "Created",
@@ -300,12 +366,126 @@ const CreateCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
 
   const updateHandler = (e) => {
     e.preventDefault();
+    const fd = {
+      type: type,
+      desc: desc
+    }
+
+    updateApi({
+      url: `updateSubCategoryType/${id}`,
+      payload: fd,
+      setLoading,
+      successMsg: "Updated",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+
+
+  return (
+    <Modal show={show} onHide={handleClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          {edit ? "Edit Type" : "Add Type"}
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={edit ? updateHandler : createHandler}>
+          <Form.Group className="mb-3">
+            <Form.Label>Type</Form.Label>
+            <Form.Control
+              type="text"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Description</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+            />
+          </Form.Group>
+          <button className="submitBtn" type="submit" disabled={loading}>
+            {loading ? <ClipLoader color="#fff" /> : "Submit"}
+          </button>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
+
+const CreateCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
+  const [name, setName] = useState(data?.name || '');
+  const [type, setType] = useState(data?.gender || '');
+  const [image, setImage] = useState(null); // Changed initial value to null
+  const [loading, setLoading] = useState(false);
+  const [response, setResponse] = useState(null);
+
+  // Add useEffect to update state when `data` prop changes
+  useEffect(() => {
+    if (edit && data) {
+      setName(data.name || "");
+      setType(data.gender || "");
+      setImage(data.image || "");
+    } else {
+      resetForm();
+    }
+  }, [edit, data]);
+
+  const resetForm = () => {
+    setName("");
+    setType("");
+    setImage(null); // Reset to null// Clear error
+  };
+
+  const createHandler = (e) => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("gender", type);
+
+    if (image) {
+      if (image.size > 1048576) {
+        showNotification({ message: "File size should be less than 1 MB.", type: "danger" });
+        return; // Prevent form submission
+      }
+      fd.append("image", image);
+    }
+
+    createApi({
+      url: "api/v1/Category/addCategory",
+      payload: fd,
+      setLoading,
+      successMsg: "Created",
+      additionalFunctions: [handleClose, fetchApi],
+    });
+    resetForm();
+  };
+
+  const updateHandler = (e) => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("gender", type);
+
+    if (image) {
+      if (image.size > 1048576) {
+        showNotification({ message: "File size should be less than 1 MB.", type: "danger" });
+        return; // Prevent form submission
+      }
+      fd.append("image", image);
+    }
+
     updateApi({
       url: `api/v1/Category/updateCategory/${id}`,
       payload: fd,
       setLoading,
       successMsg: "Updated",
-      additionalFunctions,
+      additionalFunctions: [handleClose, fetchApi],
     });
     resetForm();
   };
@@ -322,12 +502,10 @@ const CreateCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
     fetchHandler();
   }, []);
 
-
   return (
     <Modal show={show} onHide={handleClose} centered>
       <Modal.Header closeButton>
         <Modal.Title id="contained-modal-title-vcenter">
-          {" "}
           {edit ? "Edit Category" : " Add Category"}
         </Modal.Title>
       </Modal.Header>
@@ -359,16 +537,12 @@ const CreateCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
             <Form.Label>Type</Form.Label>
             <Form.Select
               value={type}
-              onChange={(e) => {
-                const selectedType = response?.data?.find(type => type?.gender === e.target.value);
-                // setCategoryId(selectedCategory?._id);
-                setType(e.target.value);
-              }}
+              onChange={(e) => setType(e.target.value)}
             >
               <option>Select Type</option>
-              {response?.data?.map(type => (
+              {response?.data?.length ? response.data.map(type => (
                 <option key={type?._id} value={type?.gender}>{type?.gender}</option>
-              ))}
+              )) : <option disabled>No types available</option>}
             </Form.Select>
           </Form.Group>
 
@@ -380,6 +554,7 @@ const CreateCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
     </Modal>
   );
 };
+
 
 const EditVendorStatus = ({ show, handleClose, id, fetchApi }) => {
   const [status, setStatus] = useState("");
@@ -436,9 +611,11 @@ const CreateSubCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
   const [name, setName] = useState(data?.name || '');
   const [image, setImage] = useState(data?.image || '');
   const [categoryid, setCategoryId] = useState(data?.categoryId._id || '');
+  const [type, setType] = useState(data?.type || '');
   // const [imagePreview, setImagePreview] = useState(data?.image || '');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState(null);
+  const [response1, setResponse1] = useState(null);
   const [categoryName, setCategoryName] = useState(data?.categoryId.name || null);
 
 
@@ -448,6 +625,7 @@ const CreateSubCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
     if (edit && data) {
       setName(data.name || "");
       setImage(data.image || "");
+      setType(data?.type || "");
       // setImagePreview(data.image || "");
       setCategoryId(data?.categoryId._id || "");
       setCategoryName(data?.categoryId.name || "");
@@ -455,6 +633,7 @@ const CreateSubCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
     else {
       setName("");
       setImage("");
+      setType('');
       setCategoryName("");
       setCategoryId("")
       // setImagePreview("");
@@ -466,19 +645,28 @@ const CreateSubCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
     setName("");
     setImage("");
     setCategoryName("");
+    setType('');
     setCategoryId("")
     // setImagePreview("");
   };
 
-  const fd = new FormData();
-  fd.append("name", name);
-  fd.append("image", image);
-  fd.append("categoryId", categoryid);
+
 
   const additionalFunctions = [handleClose, fetchApi];
 
   const createHandler = (e) => {
     e.preventDefault();
+    const fd = new FormData();
+    fd.append("name", name);
+    if (image) {
+      if (image.size > 1048576) {
+        showNotification({ message: "File size should be less than 1 MB.", type: "danger" });
+        return; // Prevent form submission
+      }
+      fd.append("image", image);
+    }
+    fd.append("categoryId", categoryid);
+    fd.append("type", type);
     createApi({
       url: "api/v1/SubCategory/addSubcategory",
       payload: fd,
@@ -491,6 +679,17 @@ const CreateSubCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
 
   const updateHandler = (e) => {
     e.preventDefault();
+    const fd = new FormData();
+    fd.append("name", name);
+    if (image) {
+      if (image.size > 1048576) {
+        showNotification({ message: "File size should be less than 1 MB.", type: "danger" });
+        return; // Prevent form submission
+      }
+      fd.append("image", image);
+    }
+    fd.append("categoryId", categoryid);
+    fd.append("type", type);
     updateApi({
       url: `api/v1/SubCategory/updateSubcategory/${id}`,
       payload: fd,
@@ -510,8 +709,17 @@ const CreateSubCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
     });
   };
 
+  const fetchHandler1 = () => {
+    getApi({
+      url: "getAllSubCategoryTypes",
+      setLoading,
+      setResponse: setResponse1,
+    });
+  };
+
   useEffect(() => {
     fetchHandler();
+    fetchHandler1();
   }, []);
 
 
@@ -539,6 +747,22 @@ const CreateSubCategory = ({ show, handleClose, edit, id, fetchApi, data }) => {
           <Form.Group className="mb-3">
             <Form.Label>Title</Form.Label>
             <Form.Control type="text" value={name} onChange={(e) => setName(e.target.value)} />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Sub Category Type</Form.Label>
+            <Form.Select
+              value={type}
+              onChange={(e) => {
+                const selectedType = response1?.data?.find(type => type?.type === e.target.value);
+                // setCategoryId(selectedCategory?._id);
+                setType(e.target.value);
+              }}
+            >
+              <option>Select Type</option>
+              {response1?.data?.map(type => (
+                <option key={type?._id} value={type?.type}>{type?.type}</option>
+              ))}
+            </Form.Select>
           </Form.Group>
           <Form.Group className="mb-3">
             <Form.Label>Category</Form.Label>
@@ -670,15 +894,35 @@ const CreateSubscription = ({ show, handleClose, edit, id, name, fetchApi, data 
   const [newFeature, setNewFeature] = useState({ features: "", count: 0 });
   const [loading, setLoading] = useState(false);
 
+  const resetForm = () => {
+    setSubscriptionData({
+      name: data?.name || '',
+      monthly: data?.monthly || '',
+      quarterly: data?.quarterly || '',
+      halfYearly: data?.halfYearly || '',
+      yearly: data?.yearly || '',
+      isShowHomeScreen: data?.isShowHomeScreen || false,
+      isShowSalesScreen: data?.isShowSalesScreen || false,
+      isShowOrderScreen: data?.isShowOrderScreen || false,
+      features: {
+        monthlyData: data?.monthlyData || [],
+        quarterlyData: data?.quarterlyData || [],
+        halfYearlyData: data?.halfYearlyData || [],
+        yearlyData: data?.yearlyData || []
+      }
+    });
+
+    setNewFeature({ features: "", count: 0 });
+  };
+
   useEffect(() => {
     if (edit && data) {
       setSubscriptionData({
-        ...subscriptionData,
-        name: data.name || '',
-        monthly: data.monthly || '',
-        quarterly: data.quarterly || '',
-        halfYearly: data.halfYearly || '',
-        yearly: data.yearly || '',
+        name: data?.name || '',
+        monthly: data?.monthly || '',
+        quarterly: data?.quarterly || '',
+        halfYearly: data?.halfYearly || '',
+        yearly: data?.yearly || '',
         isShowHomeScreen: data?.isShowHomeScreen || false,
         isShowSalesScreen: data?.isShowSalesScreen || false,
         isShowOrderScreen: data?.isShowOrderScreen || false,
@@ -689,8 +933,26 @@ const CreateSubscription = ({ show, handleClose, edit, id, name, fetchApi, data 
           yearlyData: data?.yearlyData || []
         }
       });
+    } else {
+      setSubscriptionData({
+        name: '',
+        monthly: '',
+        quarterly: '',
+        halfYearly: '',
+        yearly: '',
+        isShowHomeScreen: false,
+        isShowSalesScreen: false,
+        isShowOrderScreen: false,
+        features: {
+          monthlyData: [],
+          quarterlyData: [],
+          halfYearlyData: [],
+          yearlyData: []
+        }
+      });
     }
   }, [edit, data]);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -783,12 +1045,30 @@ const CreateSubscription = ({ show, handleClose, edit, id, name, fetchApi, data 
         additionalFunctions: [handleClose, fetchApi]
       });
     }
+    resetForm()
   };
+
+  const featureOptions = [
+    'Products',
+    'Images/ Product',
+    'Video clips/ Product',
+    'Homescreen Flash',
+    'Invoice creation',
+    'Inventory management',
+    'Reports',
+  ];
+
+
+  const closemodal = () => {
+    handleClose()
+    resetForm()
+  }
+
 
 
 
   return (
-    <Modal show={show} onHide={handleClose} centered>
+    <Modal show={show} onHide={closemodal} centered>
       <Modal.Header closeButton>
         <Modal.Title>{edit ? "Edit Subscription" : "Create New Subscription"}</Modal.Title>
       </Modal.Header>
@@ -885,13 +1165,16 @@ const CreateSubscription = ({ show, handleClose, edit, id, name, fetchApi, data 
               <Form.Group className="mb-3">
                 <Form.Label>Add New Feature</Form.Label>
                 {/* Handle new feature name input */}
-                <Form.Control
-                  type="text"
+                <Form.Select
                   name="features"
                   value={newFeature[period]?.features || ''}
                   onChange={(e) => handleFeatureChange(e, period)}
-                  placeholder="Enter feature name"
-                />
+                >
+                  <option value="" disabled>Select feature</option>
+                  {featureOptions.map((option, idx) => (
+                    <option key={idx} value={option}>{option}</option>
+                  ))}
+                </Form.Select>
                 {/* Handle new feature count input */}
                 <Form.Control
                   type="number"
@@ -1243,12 +1526,16 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
   const [location, setLocation] = useState(data?.locationOfBlog || '');
   const [locationId, setLocationId] = useState('');
   const [image, setImage] = useState(data?.blogImage || []);
+  const [video, setVideo] = useState(data?.blogVideo || []);
   const [loading, setLoading] = useState(false);
   const [show1, setShow1] = useState(false);
   const [show2, setShow2] = useState(false);
-  const [imgid, setImageId] = useState('')
-  const [viewimg, setViewImage] = useState('')
+  const [show3, setShow3] = useState(false);
+  const [show4, setShow4] = useState(false);
+  const [imgid, setImageId] = useState('');
+  const [viewimg, setViewImage] = useState('');
   const [response, setResponse] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (edit && data) {
@@ -1256,11 +1543,12 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
       setDesc(data?.desc || "");
       setLocation(data?.locationOfBlog || '');
       setImage(data.blogImage || []);
-    }
-    else {
+      setVideo(data.blogVideo || []);
+    } else {
       setName('');
       setDesc('');
       setImage([]);
+      setVideo([]);
       setLocation('');
     }
   }, [edit, data]);
@@ -1269,23 +1557,29 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
     setName("");
     setDesc("");
     setLocation("");
-    setImage([]); // Clear image after form reset
+    setImage([]);
+    setVideo([]);
   };
 
-  // Handle new images by appending them to the existing state
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    setImage([...image, ...selectedFiles]);
+    const validFiles = [];
+    selectedFiles.forEach(file => {
+      if (file.size <= 1048576) {
+        validFiles.push(file);
+        setError("");
+      } else {
+        setError("Picture size should be less than 1 MB.");
+      }
+    });
+    setImage([...image, ...validFiles]);
   };
-
-  // Prepare FormData including all images
-
 
   const fd = new FormData();
   fd.append("name", name);
   fd.append("desc", desc);
   fd.append("locationOfBlog", location);
-  image.forEach((img) => {
+  image.forEach(img => {
     fd.append("blogImages", img instanceof File ? img : img.img);
   });
 
@@ -1301,6 +1595,7 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
       additionalFunctions,
     });
     resetForm();
+    setError("");
   };
 
   const updateHandler = (e) => {
@@ -1309,7 +1604,7 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
       name: name,
       desc: desc,
       locationOfBlog: location
-    }
+    };
     updateApi({
       url: `api/v1/admin/blog/${id}/content`,
       payload: fd,
@@ -1318,8 +1613,8 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
       additionalFunctions,
     });
     resetForm();
+    setError("");
   };
-
 
   const fetchHandler = () => {
     getApi({
@@ -1332,9 +1627,6 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
   useEffect(() => {
     fetchHandler();
   }, []);
-
-
-
 
   return (
     <Modal show={show} onHide={handleClose} centered>
@@ -1354,6 +1646,22 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
         fetchApi={fetchApi}
         handleClose1={handleClose}
       />
+      <AddBlogVideo
+        show={show3}
+        handleClose={() => setShow3(false)}
+        id={id}
+        fetchApi={fetchApi}
+        handleClose1={handleClose}
+      />
+      <UpdateBlogVideo
+        show={show4}
+        handleClose={() => setShow4(false)}
+        id={id}
+        imgid={imgid}
+        fetchApi={fetchApi}
+        handleClose1={handleClose}
+        img={viewimg}
+      />
       <Modal.Header closeButton>
         <Modal.Title id="contained-modal-title-vcenter">
           {edit ? "Edit Blog" : "Add Blog"}
@@ -1363,15 +1671,17 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
         <Form onSubmit={edit ? updateHandler : createHandler}>
           <Form.Group className="mb-3">
             <Form.Label>Image</Form.Label>
-            {edit ?
-              ""
-              :
-              <Form.Control
-                type="file"
-                multiple // Allow multiple file selection
-                onChange={handleImageChange}
-              />
-            }
+            {!edit && (
+              <>
+                <Form.Control
+                  type="file"
+                  multiple
+                  onChange={handleImageChange}
+                />
+                {error && <div style={{ color: "red", marginTop: "5px" }}>{error}</div>}
+              </>
+            )}
+
             <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {image.map((img, index) => (
                 <div key={index} className="imagePreview1">
@@ -1384,7 +1694,7 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
                     <div className="overlay-content" onClick={() => {
                       setImageId(img._id);
                       setShow1(true);
-                      setViewImage(img.img)
+                      setViewImage(img.img);
                     }}>
                       <MdEdit color="#ffffff" size={20} />
                       <span>update</span>
@@ -1392,17 +1702,39 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
                   </div>
                 </div>
               ))}
-              {edit ?
-                <div className="imagePreview2"
-                  onClick={() => {
-                    setShow2(true);
-                  }}>
+              {edit && (
+                <div className="imagePreview2" onClick={() => setShow2(true)}>
                   Add Image
                 </div>
-
-                :
-                ""
-              }
+              )}
+            </div>
+            {/* Video previews */}
+            <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {video.map((video, index) => (
+                <div key={index} className="imagePreview1">
+                  <video
+                    src={video.video}
+                    className="centerImage"
+                    controls
+                    style={{ width: "100px", height: '100px', objectFit: 'cover' }}
+                  />
+                  <div className="overlay">
+                    <div className="overlay-content" onClick={() => {
+                      setImageId(video._id);
+                      setShow4(true);
+                      setViewImage(video.video);
+                    }}>
+                      <MdEdit color="#ffffff" size={20} />
+                      <span>update</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {edit && (
+                <div className="imagePreview2" onClick={() => setShow3(true)}>
+                  Add Video
+                </div>
+              )}
             </div>
           </Form.Group>
           <Form.Group className="mb-3">
@@ -1442,9 +1774,11 @@ const CreateBlog = ({ show, handleClose, edit, id, fetchApi, data }) => {
     </Modal>
   );
 };
+
 const AddBlogImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
   const [image, setImage] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const resetForm = () => {
     setImage([]); // Clear image after form reset
@@ -1453,12 +1787,21 @@ const AddBlogImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
   // Handle new images by appending them to the existing state
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    setImage([...image, ...selectedFiles]);
+    const validFiles = [];
+
+    // Check each file size and add to validFiles if within limit
+    selectedFiles.forEach(file => {
+      if (file.size <= 1048576) { // 1 MB in bytes
+        validFiles.push(file);
+      } else {
+        setError("Picture size should be less than 1 MB.");
+      }
+    });
+
+    setImage([...image, ...validFiles]);
   };
 
   // Prepare FormData including all images
-
-
   const fd = new FormData();
   image.forEach((img) => {
     fd.append("images", img instanceof File ? img : img.img);
@@ -1468,6 +1811,12 @@ const AddBlogImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
 
   const createHandler = (e) => {
     e.preventDefault();
+
+    if (image.some(img => img.size > 1048576)) {
+      setError("One or more images exceed the 1 MB size limit.");
+      return;
+    }
+
     createApi({
       url: `api/v1/admin/addNewImageToBlog/${id}`,
       payload: fd,
@@ -1475,9 +1824,10 @@ const AddBlogImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
       successMsg: "Added Image",
       additionalFunctions,
     });
-    resetForm();
-  };
 
+    resetForm();
+    setError(""); // Clear any previous error
+  };
 
   return (
     <Modal show={show} onHide={handleClose} centered>
@@ -1495,6 +1845,7 @@ const AddBlogImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
               multiple // Allow multiple file selection
               onChange={handleImageChange}
             />
+            {error && <div style={{ color: "red", marginTop: "5px" }}>{error}</div>}
             <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {image.map((img, index) => (
                 <div key={index} className="imagePreview1">
@@ -1516,6 +1867,82 @@ const AddBlogImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
   );
 };
 
+const AddBlogVideo = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
+  const [video, setVideo] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const resetForm = () => {
+    setVideo([]); // Clear image after form reset
+  };
+
+  // Handle new images by appending them to the existing state
+  const handleImageChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    setVideo([...video, ...selectedFiles]);
+  };
+
+  // Prepare FormData including all images
+
+
+  const fd = new FormData();
+  video.forEach((video) => {
+    fd.append("video", video instanceof File ? video : video.video);
+  });
+
+  const additionalFunctions = [handleClose, fetchApi, handleClose1];
+
+  const createHandler = (e) => {
+    e.preventDefault();
+    createApi({
+      url: `admin/addNewVideoToBlog/${id}`,
+      payload: fd,
+      setLoading,
+      successMsg: "Added Video",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+
+  return (
+    <Modal show={show} onHide={handleClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Add Blog Video
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={createHandler}>
+          <Form.Group className="mb-3">
+            <Form.Label>Video</Form.Label>
+            <Form.Control
+              type="file"
+              multiple // Allow multiple file selection
+              onChange={handleImageChange}
+            />
+            <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {video.map((video, index) => (
+                <div key={index} className="imagePreview1">
+                  <video
+                    src={video instanceof File ? URL.createObjectURL(video) : video.video}
+                    alt="Selected"
+                    controls
+                    style={{ width: "100px", height: '100px', objectFit: 'cover' }}
+                  />
+                </div>
+              ))}
+            </div>
+          </Form.Group>
+          <button className="submitBtn" type="submit" disabled={loading}>
+            {loading ? <ClipLoader color="#fff" /> : "Add"}
+          </button>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
+
+
 const UpdateBlogImage = ({ show, handleClose, id, imgid, fetchApi, handleClose1, img }) => {
   const [image, setImage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1535,6 +1962,21 @@ const UpdateBlogImage = ({ show, handleClose, id, imgid, fetchApi, handleClose1,
       payload: fd,
       setLoading,
       successMsg: "Image Updated",
+      additionalFunctions,
+    });
+    if (image && image.size > 1048576) {
+      showNotification({ message: "Picture size should be less than 1 MB.", type: "danger" });
+      handleClose()
+      return;
+    }
+    resetForm();
+  };
+
+  const deleteHandler = (e) => {
+    e.preventDefault();
+    removeApi({
+      url: `deleteBlogImageById/${id}/${imgid}`,
+      successMsg: "Removed Image!",
       additionalFunctions,
     });
     resetForm();
@@ -1566,9 +2008,88 @@ const UpdateBlogImage = ({ show, handleClose, id, imgid, fetchApi, handleClose1,
               </div>
             </div>
           </Form.Group>
-          <button className="submitBtn" type="submit" disabled={loading}>
-            {loading ? <ClipLoader color="#fff" /> : "Submit"}
-          </button>
+          <div style={{ display: 'flex', justifyContent: "space-between" }}>
+            <button className="submitBtn" type="submit" disabled={loading}>
+              {loading ? <ClipLoader color="#fff" /> : "Submit"}
+            </button>
+            <button className="submitBtn" onClick={deleteHandler} >
+              Delete Image
+            </button>
+          </div>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
+const UpdateBlogVideo = ({ show, handleClose, id, imgid, fetchApi, handleClose1, img }) => {
+  const [video, setVideo] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const resetForm = () => {
+    setVideo('');
+  };
+
+  const additionalFunctions = [handleClose, fetchApi, handleClose1];
+
+  const updateHandler = (e) => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append("video", video);
+    updateApi({
+      url: `admin/updateBlogVideo/${id}/${imgid}`,
+      payload: fd,
+      setLoading,
+      successMsg: "Video Updated",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+  const deleteHandler = (e) => {
+    e.preventDefault();
+    removeApi({
+      url: `admin/deleteVideoFromBlog/${id}/${imgid}`,
+      successMsg: "Removed Video!",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+  return (
+    <Modal show={show} onHide={handleClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Update Video
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={updateHandler}>
+          <Form.Group className="mb-3">
+            <Form.Label>Video</Form.Label>
+            <Form.Control
+              type="file"
+              // multiple // Allow multiple file selection
+              onChange={(e) => setVideo(e.target.files[0])}
+            />
+            <div className="imagePreview">
+              <div className="imagePreview1">
+                <video
+                  src={video instanceof File ? URL.createObjectURL(video) : img}
+                  alt="Selected"
+                  controls
+                  style={{ width: "100%", height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            </div>
+          </Form.Group>
+          <div style={{ display: 'flex', justifyContent: "space-between" }}>
+            <button className="submitBtn" type="submit" disabled={loading}>
+              {loading ? <ClipLoader color="#fff" /> : "Submit"}
+            </button>
+            <button className="submitBtn" onClick={deleteHandler} >
+              Delete Video
+            </button>
+          </div>
         </Form>
       </Modal.Body>
     </Modal>
@@ -1584,13 +2105,17 @@ const CreateEvent = ({ show, handleClose, edit, id, fetchApi, data }) => {
   const [area, setarea] = useState(data?.areaName || '');
   const [areaNameId, setareaNameId] = useState('');
   const [image, setImage] = useState(data?.eventImage || []);
+  const [video, setVideo] = useState(data?.eventVideo || []);
   const [loading, setLoading] = useState(false);
   const [show1, setShow1] = useState(false);
   const [show2, setShow2] = useState(false);
+  const [show3, setShow3] = useState(false);
+  const [show4, setShow4] = useState(false);
   const [imgid, setImageId] = useState('')
   const [viewimg, setViewImage] = useState('')
   const [response, setResponse] = useState(null);
   const [response1, setResponse1] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (edit && data) {
@@ -1599,11 +2124,13 @@ const CreateEvent = ({ show, handleClose, edit, id, fetchApi, data }) => {
       setImage(data.eventImage || []);
       setLocation(data?.locationOfEvent || '');
       setarea(data?.areaName || '');
+      setVideo(data.eventVideo || []);
     } else {
       // Reset all fields when edit is false
       setName('');
       setDesc('');
       setImage([]);
+      setVideo([]);
       setLocation('');
       setarea('');
     }
@@ -1617,6 +2144,7 @@ const CreateEvent = ({ show, handleClose, edit, id, fetchApi, data }) => {
     setLocation("");
     setarea("");
     setImage([]);
+    setVideo([]);
   };
 
 
@@ -1625,7 +2153,16 @@ const CreateEvent = ({ show, handleClose, edit, id, fetchApi, data }) => {
   // Handle new images by appending them to the existing state
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    setImage([...image, ...selectedFiles]);
+    const validFiles = [];
+    selectedFiles.forEach(file => {
+      if (file.size <= 1048576) {
+        validFiles.push(file);
+        setError("");
+      } else {
+        setError("Picture size should be less than 1 MB.");
+      }
+    });
+    setImage([...image, ...validFiles]);
   };
 
 
@@ -1650,6 +2187,7 @@ const CreateEvent = ({ show, handleClose, edit, id, fetchApi, data }) => {
       additionalFunctions,
     });
     resetForm();
+    setError("");
   };
 
 
@@ -1670,6 +2208,7 @@ const CreateEvent = ({ show, handleClose, edit, id, fetchApi, data }) => {
       additionalFunctions,
     });
     resetForm();
+    setError("");
   };
 
 
@@ -1720,6 +2259,22 @@ const CreateEvent = ({ show, handleClose, edit, id, fetchApi, data }) => {
         fetchApi={fetchApi}
         handleClose1={handleClose}
       />
+      <AddEventVideo
+        show={show3}
+        handleClose={() => setShow3(false)}
+        id={id}
+        fetchApi={fetchApi}
+        handleClose1={handleClose}
+      />
+      <UpdateEventVideo
+        show={show4}
+        handleClose={() => setShow4(false)}
+        id={id}
+        imgid={imgid}
+        fetchApi={fetchApi}
+        handleClose1={handleClose}
+        img={viewimg}
+      />
       <Modal.Header closeButton>
         <Modal.Title id="contained-modal-title-vcenter">
           {edit ? "Edit Event" : "Add Event"}
@@ -1732,11 +2287,14 @@ const CreateEvent = ({ show, handleClose, edit, id, fetchApi, data }) => {
             {edit ?
               ""
               :
-              <Form.Control
-                type="file"
-                multiple // Allow multiple file selection
-                onChange={handleImageChange}
-              />
+              <>
+                <Form.Control
+                  type="file"
+                  multiple // Allow multiple file selection
+                  onChange={handleImageChange}
+                />
+                {error && <div style={{ color: "red", marginTop: "5px" }}>{error}</div>}
+              </>
             }
             <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {image?.map((img, index) => (
@@ -1769,6 +2327,34 @@ const CreateEvent = ({ show, handleClose, edit, id, fetchApi, data }) => {
                 :
                 ""
               }
+            </div>
+            {/* Video previews */}
+            <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {video.map((video, index) => (
+                <div key={index} className="imagePreview1">
+                  <video
+                    src={video.video}
+                    className="centerImage"
+                    controls
+                    style={{ width: "100px", height: '100px', objectFit: 'cover' }}
+                  />
+                  <div className="overlay">
+                    <div className="overlay-content" onClick={() => {
+                      setImageId(video._id);
+                      setShow4(true);
+                      setViewImage(video.video);
+                    }}>
+                      <MdEdit color="#ffffff" size={20} />
+                      <span>update</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {edit && (
+                <div className="imagePreview2" onClick={() => setShow3(true)}>
+                  Add Video
+                </div>
+              )}
             </div>
           </Form.Group>
           <Form.Group className="mb-3">
@@ -1827,6 +2413,7 @@ const CreateEvent = ({ show, handleClose, edit, id, fetchApi, data }) => {
 const AddEventImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
   const [image, setImage] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const resetForm = () => {
     setImage([]); // Clear image after form reset
@@ -1835,7 +2422,18 @@ const AddEventImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
   // Handle new images by appending them to the existing state
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    setImage([...image, ...selectedFiles]);
+    const validFiles = [];
+
+    // Check each file size and add to validFiles if within limit
+    selectedFiles.forEach(file => {
+      if (file.size <= 1048576) { // 1 MB in bytes
+        validFiles.push(file);
+      } else {
+        setError("Picture size should be less than 1 MB.");
+      }
+    });
+
+    setImage([...image, ...validFiles]);
   };
 
   // Prepare FormData including all images
@@ -1850,6 +2448,10 @@ const AddEventImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
 
   const createHandler = (e) => {
     e.preventDefault();
+    if (image.some(img => img.size > 1048576)) {
+      setError("One or more images exceed the 1 MB size limit.");
+      return;
+    }
     createApi({
       url: `api/v1/admin/addNewImageToEvent/${id}`,
       payload: fd,
@@ -1858,6 +2460,7 @@ const AddEventImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
       additionalFunctions,
     });
     resetForm();
+    setError("");
   };
 
 
@@ -1877,12 +2480,87 @@ const AddEventImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
               multiple // Allow multiple file selection
               onChange={handleImageChange}
             />
+            {error && <div style={{ color: "red", marginTop: "5px" }}>{error}</div>}
             <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {image.map((img, index) => (
                 <div key={index} className="imagePreview1">
                   <img
                     src={img instanceof File ? URL.createObjectURL(img) : img.img}
                     alt="Selected"
+                    style={{ width: "100px", height: '100px', objectFit: 'cover' }}
+                  />
+                </div>
+              ))}
+            </div>
+          </Form.Group>
+          <button className="submitBtn" type="submit" disabled={loading}>
+            {loading ? <ClipLoader color="#fff" /> : "Add"}
+          </button>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
+const AddEventVideo = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
+  const [video, setVideo] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const resetForm = () => {
+    setVideo([]); // Clear image after form reset
+  };
+
+  // Handle new images by appending them to the existing state
+  const handleImageChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    setVideo([...video, ...selectedFiles]);
+  };
+
+  // Prepare FormData including all images
+
+
+  const fd = new FormData();
+  video.forEach((video) => {
+    fd.append("video", video instanceof File ? video : video.video);
+  });
+
+  const additionalFunctions = [handleClose, fetchApi, handleClose1];
+
+  const createHandler = (e) => {
+    e.preventDefault();
+    createApi({
+      url: `admin/addNewVideoToEvent/${id}`,
+      payload: fd,
+      setLoading,
+      successMsg: "Added Video",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+
+  return (
+    <Modal show={show} onHide={handleClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Add Event Video
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={createHandler}>
+          <Form.Group className="mb-3">
+            <Form.Label>Video</Form.Label>
+            <Form.Control
+              type="file"
+              multiple // Allow multiple file selection
+              onChange={handleImageChange}
+            />
+            <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {video.map((video, index) => (
+                <div key={index} className="imagePreview1">
+                  <video
+                    src={video instanceof File ? URL.createObjectURL(video) : video.video}
+                    alt="Selected"
+                    controls
                     style={{ width: "100px", height: '100px', objectFit: 'cover' }}
                   />
                 </div>
@@ -1918,8 +2596,24 @@ const UpdateEventImage = ({ show, handleClose, id, imgid, fetchApi, handleClose1
       successMsg: "Image Updated",
       additionalFunctions,
     });
+    if (image && image.size > 1048576) {
+      showNotification({ message: "Picture size should be less than 1 MB.", type: "danger" });
+      handleClose()
+      return;
+    }
     resetForm();
   };
+
+  const deleteHandler = (e) => {
+    e.preventDefault();
+    removeApi({
+      url: `events/${id}/images/${imgid}`,
+      successMsg: "Removed Image!",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
 
   return (
     <Modal show={show} onHide={handleClose} centered>
@@ -1947,15 +2641,93 @@ const UpdateEventImage = ({ show, handleClose, id, imgid, fetchApi, handleClose1
               </div>
             </div>
           </Form.Group>
-          <button className="submitBtn" type="submit" disabled={loading}>
-            {loading ? <ClipLoader color="#fff" /> : "Submit"}
-          </button>
+          <div style={{ display: 'flex', justifyContent: "space-between" }}>
+            <button className="submitBtn" type="submit" disabled={loading}>
+              {loading ? <ClipLoader color="#fff" /> : "Submit"}
+            </button>
+            <button className="submitBtn" onClick={deleteHandler} >
+              Delete Image
+            </button>
+          </div>
         </Form>
       </Modal.Body>
     </Modal>
   );
 };
+const UpdateEventVideo = ({ show, handleClose, id, imgid, fetchApi, handleClose1, img }) => {
+  const [video, setVideo] = useState('');
+  const [loading, setLoading] = useState(false);
 
+  const resetForm = () => {
+    setVideo('');
+  };
+
+  const additionalFunctions = [handleClose, fetchApi, handleClose1];
+
+  const updateHandler = (e) => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append("video", video);
+    updateApi({
+      url: `admin/updateEventVideo/${id}/${imgid}`,
+      payload: fd,
+      setLoading,
+      successMsg: "Video Updated",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+  const deleteHandler = (e) => {
+    e.preventDefault();
+    removeApi({
+      url: `admin/deleteVideoFromEvent/${id}/${imgid}`,
+      successMsg: "Removed Video!",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+  return (
+    <Modal show={show} onHide={handleClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Update Video
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={updateHandler}>
+          <Form.Group className="mb-3">
+            <Form.Label>Video</Form.Label>
+            <Form.Control
+              type="file"
+              // multiple // Allow multiple file selection
+              onChange={(e) => setVideo(e.target.files[0])}
+            />
+            <div className="imagePreview">
+              <div className="imagePreview1">
+                <video
+                  src={video instanceof File ? URL.createObjectURL(video) : img}
+                  alt="Selected"
+                  controls
+                  style={{ width: "100%", height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            </div>
+          </Form.Group>
+          <div style={{ display: 'flex', justifyContent: "space-between" }}>
+            <button className="submitBtn" type="submit" disabled={loading}>
+              {loading ? <ClipLoader color="#fff" /> : "Submit"}
+            </button>
+            <button className="submitBtn" onClick={deleteHandler} >
+              Delete Video
+            </button>
+          </div>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
 
 const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
   const [name, setName] = useState(data?.name || '');
@@ -1963,15 +2735,19 @@ const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
   const [location, setLocation] = useState(data?.locationOfContest || '');
   const [locationId, setLocationId] = useState('');
   const [image, setImage] = useState(data?.contestImage || []);
+  const [video, setVideo] = useState(data?.contestVideo || []);
   const [loading, setLoading] = useState(false);
   const [show1, setShow1] = useState(false);
   const [show2, setShow2] = useState(false);
+  const [show3, setShow3] = useState(false);
+  const [show4, setShow4] = useState(false);
   const [imgid, setImageId] = useState('')
   const [viewimg, setViewImage] = useState('')
   const [response, setResponse] = useState(null);
   const [response1, setResponse1] = useState(null);
   const [area, setarea] = useState(data?.areaName || '');
   const [areaNameId, setareaNameId] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (edit && data) {
@@ -1979,11 +2755,13 @@ const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
       setDesc(data?.desc || "");
       setLocation(data?.locationOfContest || '');
       setImage(data.contestImage || []);
+      setVideo(data.contestVideo || []);
     }
     else {
       setName('');
       setDesc('');
       setImage([]);
+      setVideo([]);
       setLocation('');
     }
   }, [edit, data]);
@@ -1993,6 +2771,7 @@ const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
     setName("");
     setDesc("");
     setImage([]);
+    setVideo([]);
     setLocation("");
   };
 
@@ -2000,9 +2779,17 @@ const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
   // Handle new images by appending them to the existing state
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    setImage([...image, ...selectedFiles]);
+    const validFiles = [];
+    selectedFiles.forEach(file => {
+      if (file.size <= 1048576) {
+        validFiles.push(file);
+        setError("");
+      } else {
+        setError("Picture size should be less than 1 MB.");
+      }
+    });
+    setImage([...image, ...validFiles]);
   };
-
 
   const fd = new FormData();
   fd.append("name", name);
@@ -2025,6 +2812,7 @@ const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
       additionalFunctions,
     });
     resetForm();
+    setError("");
   };
 
 
@@ -2045,6 +2833,7 @@ const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
       additionalFunctions,
     });
     resetForm();
+    setError("");
   };
 
 
@@ -2092,6 +2881,22 @@ const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
         fetchApi={fetchApi}
         handleClose1={handleClose}
       />
+      <AddContestVideo
+        show={show3}
+        handleClose={() => setShow3(false)}
+        id={id}
+        fetchApi={fetchApi}
+        handleClose1={handleClose}
+      />
+      <UpdateContestVideo
+        show={show4}
+        handleClose={() => setShow4(false)}
+        id={id}
+        imgid={imgid}
+        fetchApi={fetchApi}
+        handleClose1={handleClose}
+        img={viewimg}
+      />
       <Modal.Header closeButton>
         <Modal.Title id="contained-modal-title-vcenter">
           {edit ? "Edit Contest" : "Add Contest"}
@@ -2104,11 +2909,14 @@ const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
             {edit ?
               ""
               :
-              <Form.Control
-                type="file"
-                multiple // Allow multiple file selection
-                onChange={handleImageChange}
-              />
+              <>
+                <Form.Control
+                  type="file"
+                  multiple // Allow multiple file selection
+                  onChange={handleImageChange}
+                />
+                {error && <div style={{ color: "red", marginTop: "5px" }}>{error}</div>}
+              </>
             }
             <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {image?.map((img, index) => (
@@ -2141,6 +2949,33 @@ const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
                 :
                 ""
               }
+            </div>
+            <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {video.map((video, index) => (
+                <div key={index} className="imagePreview1">
+                  <video
+                    src={video.video}
+                    className="centerImage"
+                    controls
+                    style={{ width: "100px", height: '100px', objectFit: 'cover' }}
+                  />
+                  <div className="overlay">
+                    <div className="overlay-content" onClick={() => {
+                      setImageId(video._id);
+                      setShow4(true);
+                      setViewImage(video.video);
+                    }}>
+                      <MdEdit color="#ffffff" size={20} />
+                      <span>update</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {edit && (
+                <div className="imagePreview2" onClick={() => setShow3(true)}>
+                  Add Video
+                </div>
+              )}
             </div>
           </Form.Group>
           <Form.Group className="mb-3">
@@ -2199,6 +3034,7 @@ const CreateContes = ({ show, handleClose, edit, id, fetchApi, data }) => {
 const AddContestImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
   const [image, setImage] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const resetForm = () => {
     setImage([]); // Clear image after form reset
@@ -2207,9 +3043,19 @@ const AddContestImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
   // Handle new images by appending them to the existing state
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    setImage([...image, ...selectedFiles]);
-  };
+    const validFiles = [];
 
+    // Check each file size and add to validFiles if within limit
+    selectedFiles.forEach(file => {
+      if (file.size <= 1048576) { // 1 MB in bytes
+        validFiles.push(file);
+      } else {
+        setError("Picture size should be less than 1 MB.");
+      }
+    });
+
+    setImage([...image, ...validFiles]);
+  };
   // Prepare FormData including all images
 
 
@@ -2222,6 +3068,10 @@ const AddContestImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
 
   const createHandler = (e) => {
     e.preventDefault();
+    if (image.some(img => img.size > 1048576)) {
+      setError("One or more images exceed the 1 MB size limit.");
+      return;
+    }
     createApi({
       url: `api/v1/admin/addNewImageToContest/${id}`,
       payload: fd,
@@ -2249,12 +3099,87 @@ const AddContestImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
               multiple // Allow multiple file selection
               onChange={handleImageChange}
             />
+            {error && <div style={{ color: "red", marginTop: "5px" }}>{error}</div>}
             <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {image.map((img, index) => (
                 <div key={index} className="imagePreview1">
                   <img
                     src={img instanceof File ? URL.createObjectURL(img) : img.img}
                     alt="Selected"
+                    style={{ width: "100px", height: '100px', objectFit: 'cover' }}
+                  />
+                </div>
+              ))}
+            </div>
+          </Form.Group>
+          <button className="submitBtn" type="submit" disabled={loading}>
+            {loading ? <ClipLoader color="#fff" /> : "Add"}
+          </button>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
+const AddContestVideo = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
+  const [video, setVideo] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+
+  const resetForm = () => {
+    setVideo([]); // Clear image after form reset
+  };
+
+  // Handle new images by appending them to the existing state
+  const handleImageChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    setVideo([...video, ...selectedFiles]);
+  };
+  // Prepare FormData including all images
+
+
+  const fd = new FormData();
+  video.forEach((video) => {
+    fd.append("video", video instanceof File ? video : video.video);
+  });
+
+  const additionalFunctions = [handleClose, fetchApi, handleClose1];
+
+  const createHandler = (e) => {
+    e.preventDefault();
+    createApi({
+      url: `admin/addNewVideoToContest/${id}`,
+      payload: fd,
+      setLoading,
+      successMsg: "Added Video",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+
+  return (
+    <Modal show={show} onHide={handleClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Add Contest Video
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={createHandler}>
+          <Form.Group className="mb-3">
+            <Form.Label>Video</Form.Label>
+            <Form.Control
+              type="file"
+              multiple // Allow multiple file selection
+              onChange={handleImageChange}
+            />
+            <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {video.map((video, index) => (
+                <div key={index} className="imagePreview1">
+                  <video
+                    src={video instanceof File ? URL.createObjectURL(video) : video.video}
+                    alt="Selected"
+                    controls
                     style={{ width: "100px", height: '100px', objectFit: 'cover' }}
                   />
                 </div>
@@ -2290,9 +3215,23 @@ const UpdateContestImage = ({ show, handleClose, id, imgid, fetchApi, handleClos
       successMsg: "Image Updated",
       additionalFunctions,
     });
+    if (image && image.size > 1048576) {
+      showNotification({ message: "Picture size should be less than 1 MB.", type: "danger" });
+      handleClose()
+      return;
+    }
     resetForm();
   };
 
+  const deleteHandler = (e) => {
+    e.preventDefault();
+    removeApi({
+      url: `deleteContestImageById/${id}/images/${imgid}`,
+      successMsg: "Removed Image!",
+      additionalFunctions,
+    });
+    resetForm();
+  };
   return (
     <Modal show={show} onHide={handleClose} centered>
       <Modal.Header closeButton>
@@ -2319,9 +3258,87 @@ const UpdateContestImage = ({ show, handleClose, id, imgid, fetchApi, handleClos
               </div>
             </div>
           </Form.Group>
-          <button className="submitBtn" type="submit" disabled={loading}>
-            {loading ? <ClipLoader color="#fff" /> : "Submit"}
-          </button>
+          <div style={{ display: 'flex', justifyContent: "space-between" }}>
+            <button className="submitBtn" type="submit" disabled={loading}>
+              {loading ? <ClipLoader color="#fff" /> : "Submit"}
+            </button>
+            <button className="submitBtn" onClick={deleteHandler} >
+              Delete Image
+            </button>
+          </div>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
+const UpdateContestVideo = ({ show, handleClose, id, imgid, fetchApi, handleClose1, img }) => {
+  const [video, setVideo] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const resetForm = () => {
+    setVideo('');
+  };
+
+  const additionalFunctions = [handleClose, fetchApi, handleClose1];
+
+  const updateHandler = (e) => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append("video", video);
+    updateApi({
+      url: `admin/updateContestVideo/${id}/${imgid}`,
+      payload: fd,
+      setLoading,
+      successMsg: "Video Updated",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+  const deleteHandler = (e) => {
+    e.preventDefault();
+    removeApi({
+      url: `admin/deleteVideoFromContest/${id}/${imgid}`,
+      successMsg: "Removed Video!",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+  return (
+    <Modal show={show} onHide={handleClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Update Video
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={updateHandler}>
+          <Form.Group className="mb-3">
+            <Form.Label>Video</Form.Label>
+            <Form.Control
+              type="file"
+              // multiple // Allow multiple file selection
+              onChange={(e) => setVideo(e.target.files[0])}
+            />
+            <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div className="imagePreview1">
+                <video
+                  src={video instanceof File ? URL.createObjectURL(video) : img}
+                  alt="Selected"
+                  controls
+                  style={{ width: "100%", height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            </div>
+          </Form.Group>
+          <div style={{ display: 'flex', justifyContent: "space-between" }}>
+            <button className="submitBtn" type="submit" disabled={loading}>
+              {loading ? <ClipLoader color="#fff" /> : "Submit"}
+            </button>
+            <button className="submitBtn" onClick={deleteHandler} >
+              Delete Video
+            </button>
+          </div>
         </Form>
       </Modal.Body>
     </Modal>
@@ -2597,6 +3614,7 @@ const CreateBrand = ({ show, handleClose, edit, id, fetchApi, data }) => {
 
 const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
   const [productImage, setProductImage] = useState(data?.productImage || []);
+  const [productVideo, setProductVideo] = useState(data?.productVideo || []);
   const [productName, setProductName] = useState(data?.productName || '');
   const [brandName, setBrandName] = useState(data?.brandName || '');
   const [ids, setIds] = useState(data?.ID || '');
@@ -2616,14 +3634,18 @@ const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
   const [response2, setResponse2] = useState(null);
   const [show1, setShow1] = useState(false);
   const [show2, setShow2] = useState(false);
+  const [show3, setShow3] = useState(false);
+  const [show4, setShow4] = useState(false);
   const [imgid, setImageId] = useState('')
   const [viewimg, setViewImage] = useState('')
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
 
   useEffect(() => {
     if (edit && data) {
       setProductImage(data?.productImage || []);
+      setProductVideo(data?.productVideo || []);
       setProductName(data?.productName || '');
       setBrandName(data?.brandName || '');
       setIds(data?.ID || '');
@@ -2644,6 +3666,7 @@ const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
       setProductName("");
       setIds("");
       setProductImage([]);
+      setProductVideo([]);
       setPrice('')
       setDiscount('')
       setMinimumOrder('')
@@ -2663,6 +3686,7 @@ const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
     setProductName("");
     setIds("");
     setProductImage([]);
+    setProductVideo([]);
     setPrice('')
     setDiscount('')
     setMinimumOrder('')
@@ -2676,10 +3700,18 @@ const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
     setSubCategoryName('')
   };
 
-  // Handle new images by appending them to the existing state
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    setProductImage([...productImage, ...selectedFiles]);
+    const validFiles = [];
+    selectedFiles.forEach(file => {
+      if (file.size <= 1048576) {
+        validFiles.push(file);
+        setError("");
+      } else {
+        setError("Picture size should be less than 1 MB.");
+      }
+    });
+    setProductImage([...productImage, ...validFiles]);
   };
 
   // Prepare FormData including all images
@@ -2714,7 +3746,8 @@ const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
       successMsg: "Created",
       additionalFunctions
     });
-    resetForm()
+    resetForm();
+    setError("");
   };
 
   const updateHandler = (e) => {
@@ -2727,6 +3760,7 @@ const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
       additionalFunctions,
     });
     resetForm();
+    setError("");
   };
 
 
@@ -2786,6 +3820,22 @@ const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
         fetchApi={fetchApi}
         handleClose1={handleClose}
       />
+      <AddProductVideo
+        show={show3}
+        handleClose={() => setShow3(false)}
+        id={id}
+        fetchApi={fetchApi}
+        handleClose1={handleClose}
+      />
+      <UpdateProductVideo
+        show={show4}
+        handleClose={() => setShow4(false)}
+        id={id}
+        imgid={imgid}
+        fetchApi={fetchApi}
+        handleClose1={handleClose}
+        img={viewimg}
+      />
       <Modal.Header closeButton>
         <Modal.Title id="contained-modal-title-vcenter">
           {edit ? "Edit Product" : "Add Product"}
@@ -2798,11 +3848,14 @@ const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
             {edit ?
               ""
               :
-              <Form.Control
-                type="file"
-                multiple
-                onChange={handleImageChange}
-              />
+              <>
+                <Form.Control
+                  type="file"
+                  multiple
+                  onChange={handleImageChange}
+                />
+                {error && <div style={{ color: "red", marginTop: "5px" }}>{error}</div>}
+              </>
             }
             <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {productImage.map((img, index) => (
@@ -2835,6 +3888,33 @@ const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
                 :
                 ""
               }
+            </div>
+            <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {productVideo.map((video, index) => (
+                <div key={index} className="imagePreview1">
+                  <video
+                    src={video.video}
+                    className="centerImage"
+                    controls
+                    style={{ width: "100px", height: '100px', objectFit: 'cover' }}
+                  />
+                  <div className="overlay">
+                    <div className="overlay-content" onClick={() => {
+                      setImageId(video._id);
+                      setShow4(true);
+                      setViewImage(video.video);
+                    }}>
+                      <MdEdit color="#ffffff" size={20} />
+                      <span>update</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {edit && (
+                <div className="imagePreview2" onClick={() => setShow3(true)}>
+                  Add Video
+                </div>
+              )}
             </div>
           </Form.Group>
           <Row>
@@ -2965,6 +4045,8 @@ const CreateProduct = ({ show, handleClose, edit, id, fetchApi, data }) => {
 const AddProductImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
   const [productImage, setProductImage] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
 
   const resetForm = () => {
     setProductImage([]); // Clear image after form reset
@@ -2973,9 +4055,19 @@ const AddProductImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
   // Handle new images by appending them to the existing state
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
-    setProductImage([...productImage, ...selectedFiles]);
-  };
+    const validFiles = [];
 
+    // Check each file size and add to validFiles if within limit
+    selectedFiles.forEach(file => {
+      if (file.size <= 1048576) { // 1 MB in bytes
+        validFiles.push(file);
+      } else {
+        setError("Picture size should be less than 1 MB.");
+      }
+    });
+
+    setProductImage([...productImage, ...validFiles]);
+  };
 
   // Prepare FormData including all images
 
@@ -2997,6 +4089,7 @@ const AddProductImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
       additionalFunctions,
     });
     resetForm();
+    resetForm();
   };
 
 
@@ -3016,12 +4109,87 @@ const AddProductImage = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
               multiple // Allow multiple file selection
               onChange={handleImageChange}
             />
+            {error && <div style={{ color: "red", marginTop: "5px" }}>{error}</div>}
             <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {productImage.map((img, index) => (
                 <div key={index} className="imagePreview1">
                   <img
                     src={img instanceof File ? URL.createObjectURL(img) : img.img}
                     alt="Selected"
+                    style={{ width: "100px", height: '100px', objectFit: 'cover' }}
+                  />
+                </div>
+              ))}
+            </div>
+          </Form.Group>
+          <button className="submitBtn" type="submit" disabled={loading}>
+            {loading ? <ClipLoader color="#fff" /> : "Add"}
+          </button>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
+const AddProductVideo = ({ show, handleClose, id, fetchApi, handleClose1 }) => {
+  const [productVideo, setProductVideo] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+
+  const resetForm = () => {
+    setProductVideo([]); // Clear image after form reset
+  };
+
+  // Handle new images by appending them to the existing state
+  const handleImageChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    setProductVideo([...productVideo, ...selectedFiles]);
+  };
+
+  // Prepare FormData including all images
+
+
+  const fd = new FormData();
+  productVideo.forEach((video) => {
+    fd.append("video", video instanceof File ? video : video.video);
+  });
+  const additionalFunctions = [handleClose, fetchApi, handleClose1];
+
+  const createHandler = (e) => {
+    e.preventDefault();
+    createApi({
+      url: `api/addNewVideoToProduct/${id}`,
+      payload: fd,
+      setLoading,
+      successMsg: "Added Video",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+
+  return (
+    <Modal show={show} onHide={handleClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Add Product Video
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={createHandler}>
+          <Form.Group className="mb-3">
+            <Form.Label>Video</Form.Label>
+            <Form.Control
+              type="file"
+              multiple // Allow multiple file selection
+              onChange={handleImageChange}
+            />
+            <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {productVideo.map((video, index) => (
+                <div key={index} className="imagePreview1">
+                  <video
+                    src={video instanceof File ? URL.createObjectURL(video) : video.video}
+                    alt="Selected"
+                    controls
                     style={{ width: "100px", height: '100px', objectFit: 'cover' }}
                   />
                 </div>
@@ -3055,9 +4223,14 @@ const UpdateProductImage = ({ show, handleClose, id, imgid, fetchApi, handleClos
       url: `updateProductImage/${id}/${imgid}`,
       payload: fd,
       setLoading,
-      successMsg: "Image Updated",
+      successMsg: "Video Updated",
       additionalFunctions,
     });
+    if (productImage && productImage.size > 1048576) {
+      showNotification({ message: "Picture size should be less than 1 MB.", type: "danger" });
+      handleClose()
+      return;
+    }
     resetForm();
   };
 
@@ -3065,7 +4238,7 @@ const UpdateProductImage = ({ show, handleClose, id, imgid, fetchApi, handleClos
     e.preventDefault();
     removeApi({
       url: `deleteProductImage/${id}/${imgid}`,
-      successMsg: "Removed Image!",
+      successMsg: "Removed Video!",
       additionalFunctions,
     });
     resetForm();
@@ -3103,6 +4276,80 @@ const UpdateProductImage = ({ show, handleClose, id, imgid, fetchApi, handleClos
             </button>
             <button className="submitBtn" onClick={deleteHandler} >
               Delete Image
+            </button>
+          </div>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+};
+const UpdateProductVideo = ({ show, handleClose, id, imgid, fetchApi, handleClose1, img }) => {
+  const [productVideo, setProductVideo] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const resetForm = () => {
+    setProductVideo('');
+  };
+
+  const additionalFunctions = [handleClose, fetchApi, handleClose1];
+
+  const updateHandler = (e) => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append("video", productVideo);
+    updateApi({
+      url: `api/updateProductVideo/${id}/${imgid}`,
+      payload: fd,
+      setLoading,
+      successMsg: "Image Updated",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+  const deleteHandler = (e) => {
+    e.preventDefault();
+    removeApi({
+      url: `api/deleteVideoFromProduct/${id}/${imgid}`,
+      successMsg: "Removed Image!",
+      additionalFunctions,
+    });
+    resetForm();
+  };
+
+  return (
+    <Modal show={show} onHide={handleClose} centered>
+      <Modal.Header closeButton>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Update Video
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={updateHandler}>
+          <Form.Group className="mb-3">
+            <Form.Label>Video</Form.Label>
+            <Form.Control
+              type="file"
+              // multiple // Allow multiple file selection
+              onChange={(e) => setProductVideo(e.target.files[0])}
+            />
+            <div className="imagePreview" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div className="imagePreview1">
+                <video
+                  src={productVideo instanceof File ? URL.createObjectURL(productVideo) : img}
+                  alt="Selected"
+                  controls
+                  style={{ width: "100%", height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            </div>
+          </Form.Group>
+          <div style={{ display: 'flex', justifyContent: "space-between" }}>
+            <button className="submitBtn" type="submit" disabled={loading}>
+              {loading ? <ClipLoader color="#fff" /> : "Submit"}
+            </button>
+            <button className="submitBtn" onClick={deleteHandler} >
+              Delete Video
             </button>
           </div>
         </Form>
@@ -3350,4 +4597,6 @@ export {
   CreateSubscriptionDiscount,
   ProductStatus,
   CreateArea,
+  CreateSubType,
+  AddBlogVideo
 };

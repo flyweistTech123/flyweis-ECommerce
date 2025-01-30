@@ -40,7 +40,7 @@ const ECategory = () => {
     });
   };
 
-  const thead = ["Sno.", "Image", "Title", "Type", "status", "Approval Status", ""];
+  const thead = ["Sno.", "Image", "Title", "Type", "Status", "Approval Status", ""];
   const tbody = response?.data?.docs?.map((i, index) => [
     `#${index + 1}`,
     <img src={i.image} alt="" style={{ maxWidth: "80px" }} />,
